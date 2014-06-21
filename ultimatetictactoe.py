@@ -25,6 +25,7 @@ class Button:
 
 def __main__():
 	global board, bigboard, turn, toplace, cpumove
+	global xminiimg, ominiimg, xlargeimg, olargeimg, catlargeimg
 
 	pygame.init()
 	fpsClock = pygame.time.Clock()
@@ -114,7 +115,6 @@ def __main__():
 			window.blit(cpubutton.img, cpubutton.loc)
 			window.blit(quitbutton.img, quitbutton.loc)
 		elif playing:
-			toplace = (-1, -1)
 			window.fill(BLACK)
 			#draw move location
 			if toplace == (-1, -1):
@@ -124,12 +124,7 @@ def __main__():
 							pygame.draw.rect(window, BLUE, t)
 			else:
 				pygame.draw.rect(window, BLUE, placeboxindicator[toplace[0]][toplace[1]])
-			#draw tiles
-			for a in tiles:
-				for b in a:
-					for c in b:
-						for t in c:
-							pygame.draw.rect(window, WHITE, t)
+			drawboard(tiles, tileslarge, window, turnbox, board, bigboard)
 			pygame.draw.rect(window, WHITE, turnbox)
 			if turn:
 				pygame.draw.rect(window, RED, turnboxindicator[0])
@@ -147,49 +142,9 @@ def __main__():
 					if winstate == 1 or winstate == 2:
 						playing = False
 						gameover = True
-			#draw pieces
-			for i, a in enumerate(board):
-				for j, b in enumerate(a):
-					for k, c in enumerate(b):
-						for l, t in enumerate(c):
-							if t == 'x':
-								window.blit(xminiimg, tiles[i][j][k][l])
-							elif t == 'o':
-								window.blit(ominiimg, tiles[i][j][k][l])
-			for i, a in enumerate(bigboard):
-				for j, t in enumerate(a):
-					if t == 'x':
-						window.blit(xlargeimg, tileslarge[i][j])
-					elif t == 'o':
-						window.blit(olargeimg, tileslarge[i][j])
-					elif t == 'c':
-						window.blit(catlargeimg, tileslarge[i][j])
 		elif gameover:
 			window.fill(BLACK)
-			#draw tiles
-			for a in tiles:
-				for b in a:
-					for c in b:
-						for t in c:
-							pygame.draw.rect(window, WHITE, t)
-			#draw pieces
-			for i, a in enumerate(board):
-				for j, b in enumerate(a):
-					for k, c in enumerate(b):
-						for l, t in enumerate(c):
-							if t == 'x':
-								window.blit(xminiimg, tiles[i][j][k][l])
-							elif t == 'o':
-								window.blit(ominiimg, tiles[i][j][k][l])
-			#draw big pieces
-			for i, a in enumerate(bigboard):
-				for j, t in enumerate(a):
-					if t == 'x':
-						window.blit(xlargeimg, tileslarge[i][j])
-					elif t == 'o':
-						window.blit(olargeimg, tileslarge[i][j])
-					elif t == 'c':
-						window.blit(catlargeimg, tileslarge[i][j])
+			drawboard(tiles, tileslarge, window, turnbox, board, bigboard)
 			pygame.draw.rect(window, WHITE, turnbox)
 			if winstate == 1: #someone won
 				if twoplayer:
@@ -316,7 +271,9 @@ def makemove(i, j, k, l):
 		if checkwin(bigboard):
 			turn = not turn
 			return 1
-	if checkdraw(board[i][j]):
+		elif checkdraw(bigboard):
+			return 2
+	elif checkdraw(board[i][j]):
 		bigboard[i][j] = 'c'
 		toplace = (-1, -1)
 		if checkdraw(bigboard):
@@ -326,12 +283,39 @@ def makemove(i, j, k, l):
 	turn = not turn
 	return 0
 
+def drawboard(tiles, tileslarge, window, turnbox, board, bigboard):
+	global xminiimg, ominiimg, xlargeimg, olargeimg, catlargeimg
+	WHITE = pygame.Color(255, 255, 255)
+	#draw tiles
+	for a in tiles:
+		for b in a:
+			for c in b:
+				for t in c:
+					pygame.draw.rect(window, WHITE, t)
+	#draw pieces
+	for i, a in enumerate(board):
+		for j, b in enumerate(a):
+			for k, c in enumerate(b):
+				for l, t in enumerate(c):
+					if t == 'x':
+						window.blit(xminiimg, tiles[i][j][k][l])
+					elif t == 'o':
+						window.blit(ominiimg, tiles[i][j][k][l])
+	#big pieces
+	for i, a in enumerate(bigboard):
+		for j, t in enumerate(a):
+			if t == 'x':
+				window.blit(xlargeimg, tileslarge[i][j])
+			elif t == 'o':
+				window.blit(olargeimg, tileslarge[i][j])
+			elif t == 'c':
+				window.blit(catlargeimg, tileslarge[i][j])
+
 def checkwin(board):
 	return horz(board) or vert(board) or majdiag(board) or mindiag(board)
 
 def horz(board):
 	for bl in board:
-		print(bl)
 		if len(set(bl)) == 1 and not ({0, 'c'} & set(bl)):
 			return True
 	return False
