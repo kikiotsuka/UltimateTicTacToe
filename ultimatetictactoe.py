@@ -39,6 +39,7 @@ def __main__():
 	xlargeimg = pygame.image.load('media/xlarge.png')
 	ominiimg = pygame.image.load('media/omini.png')
 	xminiimg = pygame.image.load('media/xmini.png')
+	catlargeimg = pygame.image.load('media/catbig.png')
 	twoplayerbutton = Button(pygame.image.load('media/twoplayer.png'))
 	twoplayerbutton.setloc((WIDTH / 2 - twoplayerbutton.dim[0] / 2, 
 							WIDTH // 3.5 - twoplayerbutton.dim[1] / 2 - 50))
@@ -59,6 +60,7 @@ def __main__():
 
 	#clickable tile locations
 	tiles = [[[[0 for x in range(3)] for x in range(3)] for x in range(3)] for x in range(3)]
+	tileslarge = [[0 for x in range(3)] for x in range(3)]
 	placeboxindicator = [[0 for x in range(3)] for x in range(3)]
 	#print(len(tiles))
 	ibig=jbig=imini=jmini=0
@@ -66,11 +68,13 @@ def __main__():
 		for b in range(10, 630 - 20, 210):
 			for x in range(a + 5, a + 200 - 20, 65):
 				for y in range(b + 5, b + 200 - 20, 65):
-					tiles[ibig][jbig][imini][jmini] = Rect(x, y, 60, 60)
+					tiles[ibig][jbig][imini][jmini] = Rect(y, x, 60, 60)
+					#print(x, y)
 					jmini += 1
 				imini += 1
 				jmini = 0
-			placeboxindicator[ibig][jbig] = Rect(a - 10, b - 10, 220, 220)
+			tileslarge[ibig][jbig] = Rect(b, a, 200, 200)
+			placeboxindicator[ibig][jbig] = Rect(b - 10, a - 10, 220, 220)
 			jbig += 1
 			imini = 0
 		ibig += 1
@@ -111,6 +115,14 @@ def __main__():
 			window.blit(quitbutton.img, quitbutton.loc)
 		elif playing:
 			window.fill(BLACK)
+			#draw move location
+			if toplace == (-1, -1):
+				for i, a in enumerate(placeboxindicator):
+					for j, t in enumerate(a):
+						if bigboard[i][j] == 0:
+							pygame.draw.rect(window, BLUE, t)
+			else:
+				pygame.draw.rect(window, BLUE, placeboxindicator[toplace[0]][toplace[1]])
 			#draw tiles
 			for a in tiles:
 				for b in a:
@@ -135,26 +147,49 @@ def __main__():
 						playing = False
 						gameover = True
 			#draw pieces
-			for i, bl in enumerate(board):
-				for j, b in enumerate(bl):
-					if b == 'x':
-						window.blit(ximg, tiles[i][j])
-					elif b == 'o':
-						window.blit(oimg, tiles[i][j])
+			for i, a in enumerate(board):
+				for j, b in enumerate(a):
+					for k, c in enumerate(b):
+						for l, t in enumerate(c):
+							if t == 'x':
+								window.blit(xminiimg, tiles[i][j][k][l])
+							elif t == 'o':
+								window.blit(ominiimg, tiles[i][j][k][l])
+			for i, a in enumerate(bigboard):
+				for j, t in enumerate(a):
+					if t == 'x':
+						window.blit(xlargeimg, tileslarge[i][j])
+					elif t == 'o':
+						window.blit(olargeimg, tileslarge[i][j])
+					elif t == 'c':
+						window.blit(catlargeimg, tileslarge[i][j])
 		elif gameover:
 			window.fill(BLACK)
+			#draw tiles
 			for a in tiles:
 				for b in a:
 					for c in b:
 						for t in c:
 							pygame.draw.rect(window, WHITE, t)
+			#draw pieces
+			for i, a in enumerate(board):
+				for j, b in enumerate(a):
+					for k, c in enumerate(b):
+						for l, t in enumerate(c):
+							if t == 'x':
+								window.blit(xminiimg, tiles[i][j][k][l])
+							elif t == 'o':
+								window.blit(ominiimg, tiles[i][j][k][l])
+			#draw big pieces
+			for i, a in enumerate(bigboard):
+				for j, t in enumerate(a):
+					if t == 'x':
+						window.blit(xlargeimg, tileslarge[i][j])
+					elif t == 'o':
+						window.blit(olargeimg, tileslarge[i][j])
+					elif t == 'c':
+						window.blit(catlargeimg, tileslarge[i][j])
 			pygame.draw.rect(window, WHITE, turnbox)
-			for i, bl in enumerate(board):
-				for j, b in enumerate(bl):
-					if b == 'x':
-						window.blit(ximg, tiles[i][j])
-					elif b == 'o':
-						window.blit(oimg, tiles[i][j])
 			if winstate == 1: #someone won
 				if twoplayer:
 					if not turn: #player1 won
@@ -208,6 +243,7 @@ def __main__():
 								for l, t in enumerate(c):
 									if t.collidepoint(mouseloc):
 										winstate = makemove(i, j, k, l)
+										#print(i, j, k, l)
 										if winstate == 1 or winstate == 2:
 											playing = False
 											gameover = True
@@ -259,20 +295,33 @@ def playercalculatemove(depth):
 
 def makemove(i, j, k, l):
 	global board, bigboard, turn, toplace
-	if board[i][j][k][k] == 0 and (toplace == (i, j) or toplace == (-1, -1)):
+	if bigboard[i][j] == 0 and board[i][j][k][l] == 0 and \
+		(toplace == (i, j) or toplace == (-1, -1)):
 		if turn:
 			board[i][j][k][l] = 'x'
 		else:
 			board[i][j][k][l] = 'o'
-		turn = not turn
+		toplace = (k, l)
+		if bigboard[k][l] != 0:
+			toplace = (-1, -1)
+	else:
+		return 0
 	if checkwin(board[i][j]):
-		bigboard[i][j] = 'x' if turn else 'o'
+		if turn:
+			bigboard[i][j] = 'x'
+		else:
+			bigboard[i][j] = 'o'
+		toplace = (-1, -1)
 		if checkwin(bigboard):
+			turn = not turn
 			return 1
 	if checkdraw(board[i][j]):
 		bigboard[i][j] = 'c'
+		toplace = (-1, -1)
 		if checkwin(bigboard):
+			turn = not turn
 			return 2
+	turn = not turn
 	return 0
 
 def checkwin(board):
@@ -280,14 +329,14 @@ def checkwin(board):
 
 def horz(board):
 	for bl in board:
-		if len(set(bl)) == 1 and {0, 'c'} not in set(bl):
+		if len(set(bl)) == 1 and not ({0, 'c'} & set(bl)):
 			return True
 	return False
 
 def vert(board):
 	for x in range(0, 3):
 		arr = [board[j][x] for j in range(3)]
-		if len(set(arr)) == 1 and {0, 'c'} not in set(arr):
+		if len(set(arr)) == 1 and not ({0, 'c'} & set(arr)):
 			return True
 	return False
 
@@ -295,7 +344,7 @@ def majdiag(board):
 	test = []
 	for x in range(0, 3):
 		test.append(board[x][x])
-	return len(set(test)) == 1 and {0, 'c'} not in set(test)
+	return len(set(test)) == 1 and not ({0, 'c'} & set(test))
 
 def mindiag(board):
 	return board[2][0]==board[1][1]==board[0][2]!=0
