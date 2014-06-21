@@ -114,6 +114,7 @@ def __main__():
 			window.blit(cpubutton.img, cpubutton.loc)
 			window.blit(quitbutton.img, quitbutton.loc)
 		elif playing:
+			toplace = (-1, -1)
 			window.fill(BLACK)
 			#draw move location
 			if toplace == (-1, -1):
@@ -318,9 +319,10 @@ def makemove(i, j, k, l):
 	if checkdraw(board[i][j]):
 		bigboard[i][j] = 'c'
 		toplace = (-1, -1)
-		if checkwin(bigboard):
-			turn = not turn
+		if checkdraw(bigboard):
 			return 2
+	if bigboard[k][l] != 0:
+		toplace = (-1, -1)
 	turn = not turn
 	return 0
 
@@ -329,6 +331,7 @@ def checkwin(board):
 
 def horz(board):
 	for bl in board:
+		print(bl)
 		if len(set(bl)) == 1 and not ({0, 'c'} & set(bl)):
 			return True
 	return False
