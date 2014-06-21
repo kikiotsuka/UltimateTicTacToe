@@ -26,6 +26,7 @@ class Button:
 def __main__():
 	global board, bigboard, turn, toplace, cpumove
 	global xminiimg, ominiimg, xlargeimg, olargeimg, catlargeimg
+	global fpsClock
 
 	pygame.init()
 	fpsClock = pygame.time.Clock()
@@ -137,8 +138,18 @@ def __main__():
 				window.blit(player1turn, (5, HEIGHT - 92))
 				window.blit(cputurn, (WIDTH / 2 + 5, HEIGHT - 92))
 				if not turn: #cpu makes move
-					cpucalculatemove(0)
-					winstate = makemove(*cpumove)
+					pygame.display.update()
+					cpucalculatemove(0, toplace, board, bigboard)
+					if cpumove != None:
+						print('ALL ACCORDING TO KEIKAKU')
+					while cpumove == None:
+						i = randint(0, 2)
+						j = randint(0, 2)
+						if board[toplace[0]][toplace[1]][i][j] == 0:
+							cpumove = (i, j)
+					cpufinalmove = toplace + cpumove
+					winstate = makemove(*cpufinalmove)
+					cpumove = None
 					if winstate == 1 or winstate == 2:
 						playing = False
 						gameover = True
@@ -212,42 +223,142 @@ def __main__():
 		pygame.display.update()
 		fpsClock.tick(60)
 
-#TODO fix me VV
-def cpucalculatemove(depth):
+def cpucalculatemove(depth, loc, board, bigboard):
 	global cpumove
-	if checkwin():
+	pygame.display.update()
+	if checkwin(bigboard):
 		return -1000
-	if checkdraw():
+	if checkdraw(bigboard):
 		return 0
+	if depth == 5:
+		return evaluate(board, 'o')
 	maxval = -999
 	for i in range(3):
 		for j in range(3):
-			if board[i][j] == 0:
-				board[i][j] = 'o'
-				ans = playercalculatemove(depth + 1)
-				board[i][j] = 0
+			if board[loc[0]][loc[1]][i][j] == 0:
+				board[loc[0]][loc[1]][i][j] = 'o'
+				newloc = (i, j)
+				trigger = False
+				if checkwin(board[loc[0]][loc[1]]):
+					bigboard[loc[0]][loc[1]] = 'o'
+					trigger = True
+				elif checkdraw(board[loc[0]][loc[1]]):
+					bigboard[loc[0]][loc[1]] = 'c'
+					trigger = True
+				ans = playercalculatemove(depth + 1, newloc, board, bigboard)
+				board[loc[0]][loc[1]][i][j] = 0
+				if trigger:
+					bigboard[loc[0]][loc[1]] = 0
 				if ans > maxval:
-					maxval = ans
 					if depth == 0:
 						cpumove = (i, j)
 	return maxval
 
-#TODO fix me VV
-def playercalculatemove(depth):
-	if checkwin():
+def playercalculatemove(depth, loc, board, bigboard):
+	if checkwin(bigboard):
 		return 1000
-	if checkdraw():
+	if checkdraw(bigboard):
 		return 0
+	if depth == 5:
+		return evaluate(board, 'x')
 	minval = 999
 	for i in range(3):
 		for j in range(3):
-			if board[i][j] == 0:
-				board[i][j] = 'x'
-				ans = cpucalculatemove(depth + 1)
-				board[i][j] = 0
+			if board[loc[0]][loc[1]][i][j] == 0:
+				newloc = (i, j)
+				board[loc[0]][loc[1]][i][j] = 'x'
+				trigger = False
+				if checkwin(board[loc[0]][loc[1]]):
+					bigboard[loc[0]][loc[1]] = 'o'
+					trigger = True
+				elif checkdraw(board[loc[0]][loc[1]]):
+					bigboard[loc[0]][loc[1]] = 'c'
+					trigger = True
+				ans = cpucalculatemove(depth + 1, newloc, board, bigboard)
+				if trigger:
+					bigboard[loc[0]][loc[1]] = 0
+				board[loc[0]][loc[1]][i][j] = 0
 				if ans < minval:
 					minval = ans
 	return minval
+
+def evaluate(board, who):
+	val = 0
+	for a in board:
+		for b in a:
+			if checkwin(b):
+				val += 100
+			if checkdraw(b):
+				val += -10
+			val += evaluatehorz(b, who)
+			val += evaluatevert(b, who)
+			val += evaluatemindiag(b, who)
+			val += evaluatemajdiag(b, who)
+	return val
+
+
+def evaluatehorz(board, who):
+	val = 0
+	opposite = 'o'
+	if who == 'o':
+		opposite = 'x'
+	for a in board:
+		for b in board:
+			if b.count(opposite) == 0 and b.count(who) == 2:
+				val += 50
+			elif b.count(opposite) == 1:
+				val += -3
+			elif b.count(opposite) == 2:
+				val += -10
+	return val
+
+def evaluatevert(board, who):
+	val = 0
+	opposite = 'o'
+	if who == 'o':
+		opposite = 'x'
+	for x in range(0, 3):
+		b = [board[j][x] for j in range(3)]
+		if b.count(opposite) == 0 and b.count(who) == 2:
+			val += 50
+		elif b.count(opposite) == 1:
+			val += -3
+		elif b.count(opposite) == 2:
+			val += -10
+	return val
+
+def evaluatemindiag(board, who):
+	b = []
+	for x in range(0, 3):
+		b.append(board[x][x])
+	opposite = 'o'
+	if who == 'o':
+		opposite = 'x'
+	val = 0
+	if b.count(opposite) == 0 and b.count(who) == 2:
+		val += 50
+	elif b.count(opposite) == 1:
+		val += -3
+	elif b.count(opposite) == 2:
+		val += -10
+	return val
+
+def evaluatemajdiag(board, who):
+	b = []
+	b.append(board[2][0])
+	b.append(board[1][1])
+	b.append(board[0][2])
+	val = 0
+	opposite = 'o'
+	if who == 'o':
+		opposite = 'x'
+	if b.count(opposite) == 0 and b.count(who) == 2:
+		val += 50
+	elif b.count(opposite) == 1:
+		val += -3
+	elif b.count(opposite) == 2:
+		val += -10
+	return val
 
 def makemove(i, j, k, l):
 	global board, bigboard, turn, toplace
