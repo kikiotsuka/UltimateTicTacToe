@@ -139,14 +139,20 @@ def __main__():
 				window.blit(cputurn, (WIDTH / 2 + 5, HEIGHT - 92))
 				if not turn: #cpu makes move
 					pygame.display.update()
-					cpucalculatemove(0, toplace, board, bigboard)
+					#cpucalculatemove(0, toplace, board, bigboard)
 					if cpumove != None:
 						print('ALL ACCORDING TO KEIKAKU')
-					while cpumove == None:
+					if cpumove == None:
+						x, y = toplace
+						while (x, y) == (-1, -1) or bigboard[x][y] != 0:
+							x = randint(0, 2)
+							y = randint(0, 2)
 						i = randint(0, 2)
 						j = randint(0, 2)
-						if board[toplace[0]][toplace[1]][i][j] == 0:
-							cpumove = (i, j)
+						while board[x][y][i][j] != 0:
+							i = randint(0, 2)
+							j = randint(0, 2)
+						cpumove = (i, j)
 					cpufinalmove = toplace + cpumove
 					winstate = makemove(*cpufinalmove)
 					cpumove = None
@@ -372,6 +378,7 @@ def makemove(i, j, k, l):
 		if bigboard[k][l] != 0:
 			toplace = (-1, -1)
 	else:
+		#TODO FIX ME
 		return 0
 	if checkwin(board[i][j]):
 		if turn:
