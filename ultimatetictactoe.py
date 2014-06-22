@@ -27,6 +27,9 @@ def __main__():
 	global board, bigboard, turn, toplace, cpumove
 	global xminiimg, ominiimg, xlargeimg, olargeimg, catlargeimg
 	global fpsClock
+	global window, BLACK, placeboxindicator, BLUE, tiles, tileslarge, WHITE, RED, player1turn, turnbox, turnboxindicator, HEIGHT, cputurn, WIDTH
+	global computations, computationslimit
+	computationslimit = 50000
 
 	pygame.init()
 	fpsClock = pygame.time.Clock()
@@ -59,6 +62,16 @@ def __main__():
 	player2turn = pygame.image.load('media/player2turn.png')
 	cputurn = pygame.image.load('media/cputurn.png')
 	ggwpnore = pygame.image.load('media/ggwpnore.png')
+
+	easybutton = Button(pygame.image.load('media/easy.png'))
+	normalbutton = Button(pygame.image.load('media/normal.png'))
+	lunaticbutton = Button(pygame.image.load('media/lunatic.png'))
+	backbutton = Button(pygame.image.load('media/back.png'))
+	easybutton.setloc((WIDTH / 2 - easybutton.dim[0] / 2, WIDTH // 3.5 - easybutton.dim[1] / 2 - 50))
+	normalbutton.setloc((WIDTH / 2 - normalbutton.dim[0] / 2, WIDTH // 3.5 * 2 - normalbutton.dim[1] / 2 - 50))
+	lunaticbutton.setloc((WIDTH / 2 - lunaticbutton.dim[0] / 2, WIDTH // 3.5 * 3 - lunaticbutton.dim[1] / 2 - 50))
+	backbutton.setloc((WIDTH / 2 + 30, lunaticbutton.loc[1] + lunaticbutton.dim[1] + 50))
+
 
 	#clickable tile locations
 	tiles = [[[[0 for x in range(3)] for x in range(3)] for x in range(3)] for x in range(3)]
@@ -95,6 +108,7 @@ def __main__():
 	playing = False
 	gameover = False
 	twoplayer = False
+	difficultyselect = False
 	cpu = False
 	winstate = 0
 
@@ -115,6 +129,12 @@ def __main__():
 			window.blit(twoplayerbutton.img, twoplayerbutton.loc)
 			window.blit(cpubutton.img, cpubutton.loc)
 			window.blit(quitbutton.img, quitbutton.loc)
+		elif difficultyselect:
+			window.fill(WHITE)
+			window.blit(easybutton.img, easybutton.loc)
+			window.blit(normalbutton.img, normalbutton.loc)
+			window.blit(lunaticbutton.img, lunaticbutton.loc)
+			window.blit(backbutton.img, backbutton.loc)
 		elif playing:
 			window.fill(BLACK)
 			#draw move location
@@ -138,10 +158,10 @@ def __main__():
 				window.blit(player1turn, (5, HEIGHT - 92))
 				window.blit(cputurn, (WIDTH / 2 + 5, HEIGHT - 92))
 				if not turn: #cpu makes move
+					#TODO fixme, also animation sequence?
 					pygame.display.update()
-					#cpucalculatemove(0, toplace, board, bigboard)
-					if cpumove != None:
-						print('ALL ACCORDING TO KEIKAKU')
+					computations = 0
+					cpucalculatemove(0, toplace, board, bigboard)
 					if cpumove == None:
 						x, y = toplace
 						while (x, y) == (-1, -1) or bigboard[x][y] != 0:
@@ -152,9 +172,8 @@ def __main__():
 						while board[x][y][i][j] != 0:
 							i = randint(0, 2)
 							j = randint(0, 2)
-						cpumove = (i, j)
-					cpufinalmove = toplace + cpumove
-					winstate = makemove(*cpufinalmove)
+						cpumove = (x, y, i, j)
+					winstate = makemove(*cpumove)
 					cpumove = None
 					if winstate == 1 or winstate == 2:
 						playing = False
@@ -192,8 +211,8 @@ def __main__():
 						trigger = True
 						twoplayer = True
 					elif cpubutton.clicked(mouseloc):
-						trigger = True
-						cpu = True
+						difficultyselect = True
+						menu = False
 					elif quitbutton.clicked(mouseloc):
 						pygame.quit()
 						sys.exit()
@@ -204,8 +223,30 @@ def __main__():
 						bigboard = [[0 for x in range(3)] for x in range(3)]
 						turn = turn if turn != None else True if randint(0, 1) == 0 else False
 						winstate = 0
-					if cpu:
+				elif difficultyselect:
+					trigger = False
+					if easybutton.clicked(mouseloc):
+						trigger = True
+						computationslimit = 40000
+					elif normalbutton.clicked(mouseloc):
+						trigger = True
+						computationslimit = 50000
+					elif lunaticbutton.clicked(mouseloc):
+						trigger = True
+						computationslimit = 60000
+					elif backbutton.clicked(mouseloc):
+						difficultyselect = False
+						menu = True
+					if trigger:
+						playing = True
+						difficultyselect = False
+						cpu = True
+						board = [[[[0 for x in range(3)] for x in range(3)] for x in range(3)] for x in range(3)]
+						bigboard = [[0 for x in range(3)] for x in range(3)]
+						turn = turn if turn != None else True if randint(0, 1) == 0 else False
+						winstate = 0
 						if not turn:
+							board[0][0][1][1] = 'o'
 							turn = not turn
 				elif playing:
 					if cpu and not turn:
@@ -231,71 +272,117 @@ def __main__():
 
 def cpucalculatemove(depth, loc, board, bigboard):
 	global cpumove
-	pygame.display.update()
+	global computations, computationslimit
+	computations += 1
+	maxval = -1000000
+	
+	#===========================
+	global window, BLACK, toplace, placeboxindicator, BLUE, tiles, tileslarge, WHITE, RED, player1turn, turnbox, turnboxindicator, HEIGHT, cputurn, WIDTH
+	if computations % 100 == 0:
+		window.fill(BLACK)
+		#draw move location
+		if toplace == (-1, -1):
+			for i, a in enumerate(placeboxindicator):
+				for j, t in enumerate(a):
+					if bigboard[i][j] == 0:
+						pygame.draw.rect(window, BLUE, t)
+		else:
+			pygame.draw.rect(window, BLUE, placeboxindicator[toplace[0]][toplace[1]])
+		drawboard(tiles, tileslarge, window, turnbox, board, bigboard)
+		pygame.draw.rect(window, WHITE, turnbox)
+		pygame.draw.rect(window, RED, turnboxindicator[1])
+		window.blit(player1turn, (5, HEIGHT - 92))
+		window.blit(cputurn, (WIDTH / 2 + 5, HEIGHT - 92))
+		pygame.display.update()
+		fpsClock.tick(60)
+	#==============================
+
 	if checkwin(bigboard):
-		return -1000
+		return maxval
 	if checkdraw(bigboard):
-		return 0
-	if depth == 5:
-		return evaluate(board, 'o')
-	maxval = -999
-	for i in range(3):
-		for j in range(3):
-			if board[loc[0]][loc[1]][i][j] == 0:
-				board[loc[0]][loc[1]][i][j] = 'o'
-				newloc = (i, j)
-				trigger = False
-				if checkwin(board[loc[0]][loc[1]]):
-					bigboard[loc[0]][loc[1]] = 'o'
-					trigger = True
-				elif checkdraw(board[loc[0]][loc[1]]):
-					bigboard[loc[0]][loc[1]] = 'c'
-					trigger = True
-				ans = playercalculatemove(depth + 1, newloc, board, bigboard)
-				board[loc[0]][loc[1]][i][j] = 0
-				if trigger:
-					bigboard[loc[0]][loc[1]] = 0
-				if ans > maxval:
-					if depth == 0:
-						cpumove = (i, j)
+		return -500000
+	if depth == 1000 or computations >= computationslimit:
+		return -evaluate(board, 'x')
+	for x in range(3):
+		for y in range(3):
+			for i in range(3):
+				for j in range(3):
+					if loc == (x, y) or loc == (-1, -1):
+						if bigboard[x][y] == 0 and board[x][y][i][j] == 0:
+							board[x][y][i][j] = 'o'
+							newloc = (i, j)
+							addval = 0
+							trigger = False
+							if checkwin(board[x][y]):
+								if bigboard[x][y] != 0:
+									toplace = (-1, -1)
+								addval += 500000
+								bigboard[x][y] = 'o'
+								trigger = True
+							elif checkdraw(board[x][y]):
+								if bigboard[x][y] != 0:
+									toplace = (-1, -1)
+								bigboard[x][y] = 'c'
+								addval += -100000
+								trigger = True
+							if toplace == (-1, -1):
+								addval += -750000
+							ans = playercalculatemove(depth + 1, newloc, board, bigboard) + addval
+							board[x][y][i][j] = 0
+							if trigger:
+								bigboard[x][y] = 0
+							if ans > maxval:
+								maxval = ans
+								if depth == 0:
+									cpumove = (x, y, i, j)
 	return maxval
 
 def playercalculatemove(depth, loc, board, bigboard):
+	global computations, computationslimit
+	computations += 1
+	minval = 1000000
 	if checkwin(bigboard):
-		return 1000
+		return minval
 	if checkdraw(bigboard):
-		return 0
-	if depth == 5:
-		return evaluate(board, 'x')
-	minval = 999
-	for i in range(3):
-		for j in range(3):
-			if board[loc[0]][loc[1]][i][j] == 0:
-				newloc = (i, j)
-				board[loc[0]][loc[1]][i][j] = 'x'
-				trigger = False
-				if checkwin(board[loc[0]][loc[1]]):
-					bigboard[loc[0]][loc[1]] = 'o'
-					trigger = True
-				elif checkdraw(board[loc[0]][loc[1]]):
-					bigboard[loc[0]][loc[1]] = 'c'
-					trigger = True
-				ans = cpucalculatemove(depth + 1, newloc, board, bigboard)
-				if trigger:
-					bigboard[loc[0]][loc[1]] = 0
-				board[loc[0]][loc[1]][i][j] = 0
-				if ans < minval:
-					minval = ans
+		return 500000
+	if depth == 1000 or computations >= computationslimit:
+		return evaluate(board, 'o')
+	for x in range(3):
+		for y in range(3):
+			for i in range(3):
+				for j in range(3):
+					if loc == (x, y) or loc == (-1, -1):
+						if bigboard[x][y] == 0 and board[x][y][i][j] == 0:
+							board[x][y][i][j] = 'x'
+							newloc = (i, j)
+							addval = 0
+							trigger = False
+							if checkwin(board[x][y]):
+								if bigboard[i][j] != 0:
+									newloc = (-1, -1)
+								addval += -500000
+								bigboard[x][y] = 'x'
+								trigger = True
+							elif checkdraw(board[x][y]):
+								if bigboard[i][j] != 0:
+									newloc = (-1, -1)
+								bigboard[x][y] = 'c'
+								addval += 100000
+								trigger = True
+							if newloc == (-1, -1):
+								addval += 750000
+							ans = cpucalculatemove(depth + 1, newloc, board, bigboard) + addval
+							board[x][y][i][j] = 0
+							if trigger:
+								bigboard[x][y] = 0
+							if ans < minval:
+								minval = ans
 	return minval
 
 def evaluate(board, who):
 	val = 0
 	for a in board:
 		for b in a:
-			if checkwin(b):
-				val += 100
-			if checkdraw(b):
-				val += -10
 			val += evaluatehorz(b, who)
 			val += evaluatevert(b, who)
 			val += evaluatemindiag(b, who)
@@ -310,12 +397,18 @@ def evaluatehorz(board, who):
 		opposite = 'x'
 	for a in board:
 		for b in board:
-			if b.count(opposite) == 0 and b.count(who) == 2:
-				val += 50
-			elif b.count(opposite) == 1:
-				val += -3
-			elif b.count(opposite) == 2:
-				val += -10
+			if b.count(who) == 3:
+				val += 30000
+			elif b.count(who) == 2 and b.count(0) == 1:
+				val += 20000
+			elif b.count(who) == 1 and b.count(0) == 2:
+				val += 10000
+			elif b.count(opposite) == 3:
+				val += -30000
+			elif b.count(opposite) == 2 and b.count(0) == 1:
+				val += -20000
+			elif b.count(opposite) == 1 and b.count(0) == 2:
+				val += -10000
 	return val
 
 def evaluatevert(board, who):
@@ -325,12 +418,18 @@ def evaluatevert(board, who):
 		opposite = 'x'
 	for x in range(0, 3):
 		b = [board[j][x] for j in range(3)]
-		if b.count(opposite) == 0 and b.count(who) == 2:
-			val += 50
-		elif b.count(opposite) == 1:
-			val += -3
-		elif b.count(opposite) == 2:
-			val += -10
+		if b.count(who) == 3:
+			val += 30000
+		elif b.count(who) == 2 and b.count(0) == 1:
+			val += 20000
+		elif b.count(who) == 1 and b.count(0) == 2:
+			val += 10000
+		elif b.count(opposite) == 3:
+			val += -30000
+		elif b.count(opposite) == 2 and b.count(0) == 1:
+			val += -20000
+		elif b.count(opposite) == 1 and b.count(0) == 2:
+			val += -10000
 	return val
 
 def evaluatemindiag(board, who):
@@ -341,12 +440,18 @@ def evaluatemindiag(board, who):
 	if who == 'o':
 		opposite = 'x'
 	val = 0
-	if b.count(opposite) == 0 and b.count(who) == 2:
-		val += 50
-	elif b.count(opposite) == 1:
-		val += -3
-	elif b.count(opposite) == 2:
-		val += -10
+	if b.count(who) == 3:
+		val += 30000
+	elif b.count(who) == 2 and b.count(0) == 1:
+		val += 20000
+	elif b.count(who) == 1 and b.count(0) == 2:
+		val += 10000
+	elif b.count(opposite) == 3:
+		val += -30000
+	elif b.count(opposite) == 2 and b.count(0) == 1:
+		val += -20000
+	elif b.count(opposite) == 1 and b.count(0) == 2:
+		val += -10000
 	return val
 
 def evaluatemajdiag(board, who):
@@ -358,12 +463,18 @@ def evaluatemajdiag(board, who):
 	opposite = 'o'
 	if who == 'o':
 		opposite = 'x'
-	if b.count(opposite) == 0 and b.count(who) == 2:
-		val += 50
-	elif b.count(opposite) == 1:
-		val += -3
-	elif b.count(opposite) == 2:
-		val += -10
+	if b.count(who) == 3:
+		val += 30000
+	elif b.count(who) == 2 and b.count(0) == 1:
+		val += 20000
+	elif b.count(who) == 1 and b.count(0) == 2:
+		val += 10000
+	elif b.count(opposite) == 3:
+		val += -30000
+	elif b.count(opposite) == 2 and b.count(0) == 1:
+		val += -20000
+	elif b.count(opposite) == 1 and b.count(0) == 2:
+		val += -10000
 	return val
 
 def makemove(i, j, k, l):
@@ -378,14 +489,14 @@ def makemove(i, j, k, l):
 		if bigboard[k][l] != 0:
 			toplace = (-1, -1)
 	else:
-		#TODO FIX ME
-		return 0
+		return -1
 	if checkwin(board[i][j]):
 		if turn:
 			bigboard[i][j] = 'x'
 		else:
 			bigboard[i][j] = 'o'
-		toplace = (-1, -1)
+		if bigboard[k][l] != 0:
+			toplace = (-1, -1)
 		if checkwin(bigboard):
 			turn = not turn
 			return 1
@@ -393,7 +504,8 @@ def makemove(i, j, k, l):
 			return 2
 	elif checkdraw(board[i][j]):
 		bigboard[i][j] = 'c'
-		toplace = (-1, -1)
+		if bigboard[k][l] != 0:
+			toplace = (-1, -1)
 		if checkdraw(bigboard):
 			return 2
 	if bigboard[k][l] != 0:
