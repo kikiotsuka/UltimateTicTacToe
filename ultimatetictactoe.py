@@ -270,6 +270,15 @@ def __main__():
 		pygame.display.update()
 		fpsClock.tick(60)
 
+"""
+AI Improvement Ideas
+
+- When AI makes a move, evaluate winning probability at the new grid location
+- change heuristics system
+	- count number of ways enemy/cpu can win
+- RNGeezus
+"""
+
 def cpucalculatemove(depth, loc, board, bigboard):
 	global cpumove
 	global computations, computationslimit
